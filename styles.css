@@ -386,6 +386,56 @@
   margin: 10px 0;
 }
 
+/* Light annoyances specific styles */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+  min-width: auto;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.checkbox-label:hover {
+  color: #003b95;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 0 -8px;
+}
+
+.checkbox-label input[type="checkbox"]:checked + span {
+  font-weight: 500;
+  color: #003b95;
+}
+
+/* Enhanced form styling for light annoyances */
+.form-row .checkbox-group {
+  flex: 1;
+  margin-left: 10px;
+}
+
+.form-row label:first-child {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .hotel-bedding-ratings-container {
@@ -415,5 +465,17 @@
   .rating-item, .rating-item-popup {
     font-size: 12px;
   }
+  
+  .checkbox-label {
+    font-size: 13px;
+  }
+  
+  .form-row .checkbox-group {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  
+  .form-row label:first-child {
+    margin-top: 0;
+  }
 }
-

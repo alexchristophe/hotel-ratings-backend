@@ -47,6 +47,7 @@ const ratingSchema = new mongoose.Schema({
   bedcoverComfort: String,
   pillowSize: String,
   pillowComfort: String,
+  lightAnnoyances: { type: [String], default: [] }, // New field for light annoyances
   // Phase 3: Abuse prevention fields
   fingerprint: { type: String, required: true, index: true },
   ipAddress: { type: String, required: true, index: true },
@@ -208,6 +209,37 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
       };
     });
 
+    // Handle light annoyances aggregation
+    const lightAnnoyancesRatings = ratings.filter(r => r.lightAnnoyances && r.lightAnnoyances.length > 0);
+    
+    if (lightAnnoyancesRatings.length > 0) {
+      const annoyanceCounts = {};
+      
+      // Count each annoyance across all ratings
+      lightAnnoyancesRatings.forEach(rating => {
+        rating.lightAnnoyances.forEach(annoyance => {
+          annoyanceCounts[annoyance] = (annoyanceCounts[annoyance] || 0) + 1;
+        });
+      });
+
+      // Sort by count and get top 2
+      const sortedAnnoyances = Object.entries(annoyanceCounts)
+        .map(([annoyance, count]) => ({
+          rating: annoyance,
+          count,
+          percentage: Math.round((count / lightAnnoyancesRatings.length) * 100 * 10) / 10
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 2);
+
+      summary.lightAnnoyances = {
+        total: lightAnnoyancesRatings.length,
+        top2: sortedAnnoyances
+      };
+    } else {
+      summary.lightAnnoyances = { total: 0, top2: [] };
+    }
+
     console.log(`Rating summary calculated for ${hotelKey}:`, summary);
     res.json(summary);
 
@@ -233,6 +265,20 @@ app.post('/ratings', async (req, res) => {
 
   if (!ratingData.fingerprint) {
     return res.status(400).json({ error: 'Missing fingerprint for abuse prevention' });
+  }
+
+  // Validate light annoyances if provided
+  if (ratingData.lightAnnoyances && Array.isArray(ratingData.lightAnnoyances)) {
+    const validAnnoyances = ['ac-panel', 'telephone', 'tv-dot', 'corridor-light', 'curtain-window', 'smoke-alarm'];
+    const invalidAnnoyances = ratingData.lightAnnoyances.filter(annoyance => !validAnnoyances.includes(annoyance));
+    
+    if (invalidAnnoyances.length > 0) {
+      return res.status(400).json({ 
+        error: 'Invalid light annoyances provided', 
+        invalidValues: invalidAnnoyances,
+        validValues: validAnnoyances
+      });
+    }
   }
 
   // Get client IP
@@ -263,9 +309,10 @@ app.post('/ratings', async (req, res) => {
   ];
 
   const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field].trim() !== '');
+  const hasLightAnnoyances = ratingData.lightAnnoyances && ratingData.lightAnnoyances.length > 0;
 
-  if (!hasAtLeastOneRating) {
-    return res.status(400).json({ error: 'At least one rating field must be provided' });
+  if (!hasAtLeastOneRating && !hasLightAnnoyances) {
+    return res.status(400).json({ error: 'At least one rating field or light annoyance must be provided' });
   }
 
   try {
@@ -279,6 +326,7 @@ app.post('/ratings', async (req, res) => {
       bedcoverComfort: ratingData.bedcoverComfort,
       pillowSize: ratingData.pillowSize,
       pillowComfort: ratingData.pillowComfort,
+      lightAnnoyances: ratingData.lightAnnoyances || [], // New field for light annoyances
       // Phase 3: Abuse prevention fields
       fingerprint: ratingData.fingerprint,
       ipAddress: ipAddress,
@@ -301,4 +349,3 @@ app.post('/ratings', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
-

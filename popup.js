@@ -214,7 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { key: 'bedcoverSize', label: '🛌 Bed Cover Size' },
         { key: 'bedcoverComfort', label: '🛌 Bed Cover Comfort' },
         { key: 'pillowSize', label: '🪶 Pillow Size' },
-        { key: 'pillowComfort', label: '🪶 Pillow Comfort' }
+        { key: 'pillowComfort', label: '🪶 Pillow Comfort' },
+        { key: 'lightAnnoyances', label: '💡 Light Annoyances' }
       ];
 
       categories.forEach(category => {
@@ -262,17 +263,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       'too-hot': 'too hot',
       'synthetic-heat': 'synthetic heat',
       'natural-heat': 'natural heat',
+      'just-right': 'just right',
       'too-cold': 'too cold',
       'too-low': 'too low',
       'nicely-judged': 'nicely judged',
-      'too-high': 'too high'
+      'too-high': 'too high',
+      'ac-panel': 'AC panel',
+      'telephone': 'telephone',
+      'tv-dot': 'TV dot',
+      'corridor-light': 'corridor light',
+      'curtain-window': 'curtain/window',
+      'smoke-alarm': 'smoke alarm'
     };
     return ratingMap[rating] || rating;
   }
 
   function getRatingClass(rating) {
-    const positiveRatings = ['as-described', 'medium', 'big-enough', 'natural-heat', 'nicely-judged'];
-    const negativeRatings = ['not-as-described', 'too-soft', 'too-hard', 'not-big-enough', 'too-hot', 'too-cold', 'too-low', 'too-high'];
+    const positiveRatings = ['as-described', 'medium', 'big-enough', 'natural-heat', 'nicely-judged', 'just-right'];
+    const negativeRatings = ['not-as-described', 'too-soft', 'too-hard', 'not-big-enough', 'too-hot', 'too-cold', 'too-low', 'too-high', 'ac-panel', 'telephone', 'tv-dot', 'corridor-light', 'curtain-window', 'smoke-alarm'];
     
     if (positiveRatings.includes(rating)) {
       return 'positive-rating';
@@ -309,6 +317,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Browser fingerprint could not be generated. Please try again.');
       }
 
+      // Collect light annoyances data
+      const lightAnnoyancesCheckboxes = document.querySelectorAll('input[name="lightAnnoyances"]:checked');
+      const lightAnnoyances = Array.from(lightAnnoyancesCheckboxes).map(checkbox => checkbox.value);
+
       // Collect form data
       const ratingData = {
         hotelKey: currentHotelInfo.hotelKey,
@@ -320,6 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         bedcoverComfort: document.getElementById('bedcoverComfort').value.trim(),
         pillowSize: document.getElementById('pillowSize').value.trim(),
         pillowComfort: document.getElementById('pillowComfort').value.trim(),
+        lightAnnoyances: lightAnnoyances, // Add new light annoyances array
         fingerprint: browserFingerprint, // Add fingerprint for rate limiting
         timestamp: new Date().toISOString()
       };
@@ -328,10 +341,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Validate that at least one rating field is selected
       const ratingFields = ['bedSize', 'bedComfort', 'bedcoverSize', 'bedcoverComfort', 'pillowSize', 'pillowComfort'];
-      const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field] !== '');
+      const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field] !== '') || lightAnnoyances.length > 0;
 
       if (!hasAtLeastOneRating) {
-        throw new Error('Please select at least one bedding rating before submitting.');
+        throw new Error('Please select at least one bedding rating or light annoyance before submitting.');
       }
 
       // Submit to backend - using Render deployment
@@ -402,8 +415,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Add form validation feedback
   const selectElements = form.querySelectorAll('select');
-  selectElements.forEach(select => {
-    select.addEventListener('change', () => {
+  const checkboxElements = form.querySelectorAll('input[type="checkbox"]');
+  
+  [...selectElements, ...checkboxElements].forEach(element => {
+    element.addEventListener('change', () => {
       // Clear any previous error messages when user starts selecting
       if (statusMessage.className === 'error') {
         statusMessage.style.display = 'none';
@@ -419,5 +434,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('Hotel Bedding Ratings Popup: Initialization complete');
 });
-
-

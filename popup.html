@@ -102,6 +102,28 @@
       font-style: italic;
       color: #666;
     }
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 5px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: normal;
+      min-width: auto;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .checkbox-label input[type="checkbox"] {
+      margin: 0;
+      cursor: pointer;
+    }
+    .checkbox-label:hover {
+      color: #003b95;
+    }
   </style>
 </head>
 <body>
@@ -163,6 +185,7 @@
           <option value="too-cold">Too cold</option>
           <option value="too-hot">Too hot</option>
           <option value="synthetic-heat">Synthetic heat</option>
+          <option value="just-right">Just right</option>
         </select>
       </div>
     </div>
@@ -189,6 +212,21 @@
       </div>
     </div>
 
+    <div class="form-section">
+      <h3>💡 Light Annoyances</h3>
+      <div class="form-row">
+        <label>Choose all that apply:</label>
+        <div class="checkbox-group">
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="ac-panel"> AC panel</label>
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="telephone"> Telephone</label>
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="tv-dot"> TV dot</label>
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="corridor-light"> Corridor light</label>
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="curtain-window"> Curtain/window</label>
+          <label class="checkbox-label"><input type="checkbox" name="lightAnnoyances" value="smoke-alarm"> Smoke alarm</label>
+        </div>
+      </div>
+    </div>
+
     <button type="submit" id="submitBtn">Submit Rating</button>
   </form>
 
@@ -197,4 +235,3 @@
   <script src="popup.js"></script>
 </body>
 </html>
-

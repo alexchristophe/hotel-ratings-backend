@@ -215,7 +215,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { key: 'bedcoverComfort', label: '🛌 Bed Cover Comfort' },
         { key: 'pillowSize', label: '🪶 Pillow Size' },
         { key: 'pillowComfort', label: '🪶 Pillow Comfort' },
-        { key: 'lightAnnoyances', label: '💡 Light Annoyances' }
+        { key: 'lightAnnoyances', label: '💡 Light Annoyances' },
+        { key: 'noise', label: '🔊 Noise' }
       ];
 
       categories.forEach(category => {
@@ -273,14 +274,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       'tv-dot': 'TV dot',
       'corridor-light': 'corridor light',
       'curtain-window': 'curtain/window',
-      'smoke-alarm': 'smoke alarm'
+      'smoke-alarm': 'smoke alarm',
+      'street': 'street',
+      'through-walls': 'through walls',
+      'through-ceiling-floors': 'through ceiling/floors',
+      'corridor': 'corridor',
+      'courtyard': 'courtyard',
+      'parking': 'parking',
+      'air-traffic': 'air traffic'
     };
     return ratingMap[rating] || rating;
   }
 
   function getRatingClass(rating) {
     const positiveRatings = ['as-described', 'medium', 'big-enough', 'natural-heat', 'nicely-judged', 'just-right'];
-    const negativeRatings = ['not-as-described', 'too-soft', 'too-hard', 'not-big-enough', 'too-hot', 'too-cold', 'too-low', 'too-high', 'ac-panel', 'telephone', 'tv-dot', 'corridor-light', 'curtain-window', 'smoke-alarm'];
+    const negativeRatings = ['not-as-described', 'too-soft', 'too-hard', 'not-big-enough', 'too-hot', 'too-cold', 'too-low', 'too-high', 'ac-panel', 'telephone', 'tv-dot', 'corridor-light', 'curtain-window', 'smoke-alarm', 'street', 'through-walls', 'through-ceiling-floors', 'corridor', 'courtyard', 'parking', 'air-traffic'];
     
     if (positiveRatings.includes(rating)) {
       return 'positive-rating';
@@ -321,6 +329,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const lightAnnoyancesCheckboxes = document.querySelectorAll('input[name="lightAnnoyances"]:checked');
       const lightAnnoyances = Array.from(lightAnnoyancesCheckboxes).map(checkbox => checkbox.value);
 
+      // Collect noise data
+      const noiseCheckboxes = document.querySelectorAll('input[name="noise"]:checked');
+      const noise = Array.from(noiseCheckboxes).map(checkbox => checkbox.value);
+
       // Collect form data
       const ratingData = {
         hotelKey: currentHotelInfo.hotelKey,
@@ -333,6 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pillowSize: document.getElementById('pillowSize').value.trim(),
         pillowComfort: document.getElementById('pillowComfort').value.trim(),
         lightAnnoyances: lightAnnoyances, // Add new light annoyances array
+        noise: noise, // Add new noise array
         fingerprint: browserFingerprint, // Add fingerprint for rate limiting
         timestamp: new Date().toISOString()
       };
@@ -341,10 +354,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Validate that at least one rating field is selected
       const ratingFields = ['bedSize', 'bedComfort', 'bedcoverSize', 'bedcoverComfort', 'pillowSize', 'pillowComfort'];
-      const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field] !== '') || lightAnnoyances.length > 0;
+      const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field] !== '') || lightAnnoyances.length > 0 || noise.length > 0;
 
       if (!hasAtLeastOneRating) {
-        throw new Error('Please select at least one bedding rating or light annoyance before submitting.');
+        throw new Error('Please select at least one bedding rating, light annoyance, or noise issue before submitting.');
       }
 
       // Submit to backend - using Render deployment
@@ -431,6 +444,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   copyrightDiv.className = 'copyright-notice';
   copyrightDiv.innerHTML = '<small style="color: #888; text-align: center; display: block; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">© All rights reserved Alex Christophe 2025</small>';
   form.appendChild(copyrightDiv);
+
+  // Add social sharing functionality
+  function setupSocialSharing() {
+    const extensionName = 'Hotel Bedding Rating Extension';
+    const extensionDescription = 'Rate hotel bedding quality, light annoyances, and noise issues on Booking.com';
+    const extensionUrl = 'https://chrome.google.com/webstore'; // Replace with actual extension URL when published
+    
+    // Facebook sharing
+    document.getElementById('shareToFacebook')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(extensionUrl)}&quote=${encodeURIComponent(extensionName + ' - ' + extensionDescription)}`;
+      chrome.tabs.create({ url: facebookUrl });
+    });
+
+    // X (Twitter) sharing
+    document.getElementById('shareToX')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const twitterText = `Check out ${extensionName}! ${extensionDescription}`;
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodeURIComponent(extensionUrl)}`;
+      chrome.tabs.create({ url: twitterUrl });
+    });
+
+    // LinkedIn sharing
+    document.getElementById('shareToLinkedIn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(extensionUrl)}`;
+      chrome.tabs.create({ url: linkedinUrl });
+    });
+  }
+
+  // Initialize social sharing
+  setupSocialSharing();
 
   console.log('Hotel Bedding Ratings Popup: Initialization complete');
 });

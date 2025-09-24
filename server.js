@@ -7,7 +7,7 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware - Configure CORS for Chrome extensions and Microsoft Edge
+// Middleware - Configure CORS for Chrome extensions
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -20,7 +20,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json()); // Make sure this is before routes
+app.use(express.json());
 
 // Connect to MongoDB Atlas using connection string from environment variable
 const mongoUri = process.env.MONGODB_URI;
@@ -36,7 +36,7 @@ mongoose.connect(mongoUri)
     process.exit(1);
   });
 
-// Define schema and model for bedding ratings with timestamps
+// Define schema and model for hotel bedding ratings ONLY
 const ratingSchema = new mongoose.Schema({
   hotelKey: { type: String, required: true, index: true },
   hotelName: String,
@@ -47,8 +47,9 @@ const ratingSchema = new mongoose.Schema({
   bedcoverComfort: String,
   pillowSize: String,
   pillowComfort: String,
-  lightAnnoyances: { type: [String], default: [] }, // New field for light annoyances
-  // Phase 3: Abuse prevention fields
+  lightAnnoyances: { type: [String], default: [] }, // Light annoyances array
+  noise: { type: [String], default: [] }, // Noise issues array
+  // Abuse prevention fields
   fingerprint: { type: String, required: true, index: true },
   ipAddress: { type: String, required: true, index: true },
   submissionTime: { type: Date, default: Date.now, index: true },
@@ -56,7 +57,7 @@ const ratingSchema = new mongoose.Schema({
 
 const Rating = mongoose.model('Rating', ratingSchema);
 
-// Rate limiting schema for abuse prevention - FIXED to be per hotel
+// Rate limiting schema for hotel ratings only
 const rateLimitSchema = new mongoose.Schema({
   identifier: { type: String, required: true, unique: true }, // IP+hotelKey or fingerprint+hotelKey
   type: { type: String, enum: ['ip_hotel', 'fingerprint_hotel'], required: true },
@@ -75,11 +76,11 @@ function getClientIP(req) {
          '127.0.0.1';
 }
 
-// Helper function to check rate limits - FIXED to be per hotel
+// Helper function to check rate limits for hotels
 async function checkRateLimit(fingerprint, hotelKey, ipAddress) {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   
-  // Check IP+Hotel rate limit (1 per week per IP per hotel) - FIXED
+  // Check IP+Hotel rate limit (1 per week per IP per hotel)
   const ipHotelId = `${ipAddress}|${hotelKey}`;
   const ipLimit = await RateLimit.findOne({
     identifier: ipHotelId,
@@ -106,11 +107,11 @@ async function checkRateLimit(fingerprint, hotelKey, ipAddress) {
   return { allowed: true };
 }
 
-// Helper function to update rate limits - FIXED to be per hotel
+// Helper function to update rate limits for hotels
 async function updateRateLimit(fingerprint, hotelKey, ipAddress) {
   const now = new Date();
   
-  // Update IP+Hotel rate limit - FIXED
+  // Update IP+Hotel rate limit
   const ipHotelId = `${ipAddress}|${hotelKey}`;
   await RateLimit.findOneAndUpdate(
     { identifier: ipHotelId, type: 'ip_hotel' },
@@ -129,10 +130,10 @@ async function updateRateLimit(fingerprint, hotelKey, ipAddress) {
 
 // Basic route to test server
 app.get('/', (req, res) => {
-  res.send('Hotel Rating Backend is running');
+  res.send('Hotel Bedding Rating Backend - Supports Bedding, Light Annoyances, and Noise Categories!');
 });
 
-// GET /ratings?hotelKey=...
+// GET /ratings?hotelKey=... - Get all ratings for a hotel
 app.get('/ratings', async (req, res) => {
   const hotelKey = req.query.hotelKey;
   if (!hotelKey) {
@@ -148,7 +149,7 @@ app.get('/ratings', async (req, res) => {
   }
 });
 
-// Phase 2: GET /ratings/summary/:hotelKey - Aggregate rating percentages
+// GET /ratings/summary/:hotelKey - Get rating summary with percentages
 app.get('/ratings/summary/:hotelKey', async (req, res) => {
   const { hotelKey } = req.params;
   
@@ -170,7 +171,7 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
       });
     }
 
-    // Calculate percentages for each category
+    // Calculate percentages for bedding categories
     const categories = ['bedSize', 'bedComfort', 'bedcoverSize', 'bedcoverComfort', 'pillowSize', 'pillowComfort'];
     const summary = {
       hotelKey,
@@ -198,7 +199,7 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
         .map(([rating, count]) => ({
           rating,
           count,
-          percentage: Math.round((count / categoryRatings.length) * 100 * 10) / 10 // Round to 1 decimal
+          percentage: Math.round((count / categoryRatings.length) * 100 * 10) / 10
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 2);
@@ -215,14 +216,12 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
     if (lightAnnoyancesRatings.length > 0) {
       const annoyanceCounts = {};
       
-      // Count each annoyance across all ratings
       lightAnnoyancesRatings.forEach(rating => {
         rating.lightAnnoyances.forEach(annoyance => {
           annoyanceCounts[annoyance] = (annoyanceCounts[annoyance] || 0) + 1;
         });
       });
 
-      // Sort by count and get top 2
       const sortedAnnoyances = Object.entries(annoyanceCounts)
         .map(([annoyance, count]) => ({
           rating: annoyance,
@@ -240,6 +239,35 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
       summary.lightAnnoyances = { total: 0, top2: [] };
     }
 
+    // Handle noise aggregation
+    const noiseRatings = ratings.filter(r => r.noise && r.noise.length > 0);
+    
+    if (noiseRatings.length > 0) {
+      const noiseCounts = {};
+      
+      noiseRatings.forEach(rating => {
+        rating.noise.forEach(noiseIssue => {
+          noiseCounts[noiseIssue] = (noiseCounts[noiseIssue] || 0) + 1;
+        });
+      });
+
+      const sortedNoise = Object.entries(noiseCounts)
+        .map(([noiseIssue, count]) => ({
+          rating: noiseIssue,
+          count,
+          percentage: Math.round((count / noiseRatings.length) * 100 * 10) / 10
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 2);
+
+      summary.noise = {
+        total: noiseRatings.length,
+        top2: sortedNoise
+      };
+    } else {
+      summary.noise = { total: 0, top2: [] };
+    }
+
     console.log(`Rating summary calculated for ${hotelKey}:`, summary);
     res.json(summary);
 
@@ -249,7 +277,7 @@ app.get('/ratings/summary/:hotelKey', async (req, res) => {
   }
 });
 
-// POST /ratings - Enhanced with FIXED rate limiting per hotel
+// POST /ratings - Submit hotel bedding rating with light annoyances and noise
 app.post('/ratings', async (req, res) => {
   if (!req.body) {
     return res.status(400).json({ error: 'Request body is missing' });
@@ -281,11 +309,25 @@ app.post('/ratings', async (req, res) => {
     }
   }
 
+  // Validate noise issues if provided
+  if (ratingData.noise && Array.isArray(ratingData.noise)) {
+    const validNoise = ['street', 'through-walls', 'through-ceiling-floors', 'corridor', 'courtyard', 'parking', 'air-traffic'];
+    const invalidNoise = ratingData.noise.filter(noise => !validNoise.includes(noise));
+    
+    if (invalidNoise.length > 0) {
+      return res.status(400).json({ 
+        error: 'Invalid noise issues provided', 
+        invalidValues: invalidNoise,
+        validValues: validNoise
+      });
+    }
+  }
+
   // Get client IP
   const ipAddress = getClientIP(req);
   console.log(`Rating submission from IP: ${ipAddress}, Fingerprint: ${ratingData.fingerprint}, Hotel: ${ratingData.hotelKey}`);
 
-  // Check rate limits - NOW PROPERLY PER HOTEL
+  // Check rate limits
   try {
     const rateLimitCheck = await checkRateLimit(ratingData.fingerprint, ratingData.hotelKey, ipAddress);
     if (!rateLimitCheck.allowed) {
@@ -302,17 +344,13 @@ app.post('/ratings', async (req, res) => {
   }
 
   // Validate at least one rating field is present
-  const ratingFields = [
-    'bedSize', 'bedComfort',
-    'bedcoverSize', 'bedcoverComfort',
-    'pillowSize', 'pillowComfort'
-  ];
-
+  const ratingFields = ['bedSize', 'bedComfort', 'bedcoverSize', 'bedcoverComfort', 'pillowSize', 'pillowComfort'];
   const hasAtLeastOneRating = ratingFields.some(field => ratingData[field] && ratingData[field].trim() !== '');
   const hasLightAnnoyances = ratingData.lightAnnoyances && ratingData.lightAnnoyances.length > 0;
+  const hasNoise = ratingData.noise && ratingData.noise.length > 0;
 
-  if (!hasAtLeastOneRating && !hasLightAnnoyances) {
-    return res.status(400).json({ error: 'At least one rating field or light annoyance must be provided' });
+  if (!hasAtLeastOneRating && !hasLightAnnoyances && !hasNoise) {
+    return res.status(400).json({ error: 'At least one rating field, light annoyance, or noise issue must be provided' });
   }
 
   try {
@@ -326,8 +364,8 @@ app.post('/ratings', async (req, res) => {
       bedcoverComfort: ratingData.bedcoverComfort,
       pillowSize: ratingData.pillowSize,
       pillowComfort: ratingData.pillowComfort,
-      lightAnnoyances: ratingData.lightAnnoyances || [], // New field for light annoyances
-      // Phase 3: Abuse prevention fields
+      lightAnnoyances: ratingData.lightAnnoyances || [],
+      noise: ratingData.noise || [],
       fingerprint: ratingData.fingerprint,
       ipAddress: ipAddress,
       submissionTime: new Date()
@@ -335,10 +373,10 @@ app.post('/ratings', async (req, res) => {
 
     await rating.save();
     
-    // Update rate limits after successful save - NOW PROPERLY PER HOTEL
+    // Update rate limits after successful save
     await updateRateLimit(ratingData.fingerprint, ratingData.hotelKey, ipAddress);
     
-    console.log('Rating saved successfully with per-hotel rate limit tracking');
+    console.log('Hotel rating saved successfully with noise and light annoyances support');
     res.status(201).json({ message: 'Rating submitted successfully', rating });
   } catch (err) {
     console.error('Error saving rating:', err);
@@ -347,5 +385,5 @@ app.post('/ratings', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Hotel Bedding Rating Server running on http://localhost:${port}`);
 });
